@@ -5,7 +5,9 @@ export const FEE_RATE = 0.01;
 export function calculateFee(addedPoints: number): number {
   if (addedPoints < 0) {
     throw new Error("addedPoints must be 0 or greater");
-  }
+  } else if(addedPoints < 100) {
+    return 0;
+  } 
 
   return addedPoints * FEE_RATE;
 }

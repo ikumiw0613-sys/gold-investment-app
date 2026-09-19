@@ -48,3 +48,8 @@ console.log("investedPoints:", investedPoints);
 console.log("approximatePrice:", approximatePrice);
 console.log("virtualAmount:", virtualAmount);
 console.log(summary);
+
+console.log(calculateFee(50));   // 0
+console.log(calculateFee(99));   // 0
+console.log(calculateFee(100));  // 1
+console.log(calculateFee(500));  // 5
