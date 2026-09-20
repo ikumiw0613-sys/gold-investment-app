@@ -1,18 +1,40 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { fetchMarketData } from "./lib/market";
-
+import type { MarketData } from "./types/market";
 
 function App() {
+  const [marketData, setMarketData] = useState<MarketData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
+    let active = true;
+
     async function loadMarketData() {
-      const data = await fetchMarketData();
-      console.log(data);
+      try {
+        const data = await fetchMarketData();
+        if (active) setMarketData(data);
+      } catch {
+        if (active) setError("市場データを取得できませんでした。");
+      }
     }
 
-    loadMarketData();
+    void loadMarketData();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
-  return null;
+  if (error) return <p role="alert">{error}</p>;
+  if (!marketData) return <p>読み込み中...</p>;
+
+  return (
+    <>
+      <p>GLD: {marketData.gldPrice}</p>
+      <p>USD/JPY: {marketData.usdJpy}</p>
+      <p>XAU/USD: {marketData.xauUsdPrice}</p>
+    </>
+  );
 }
 
-export default App
+export default App;
