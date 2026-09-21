@@ -2,10 +2,17 @@ from fastapi import FastAPI
 import os
 import httpx
 from dotenv import load_dotenv
-
+from fastapi.middleware.cors import CORSMiddleware
 
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 load_dotenv()
 
 API_KEY = os.getenv("TWELVE_DATA_API_KEY")
@@ -31,6 +38,8 @@ async def get_latest_close(symbol: str) -> float:
     
     async with httpx.AsyncClient() as client:
       response = await client.get(url,params = params)
+
+    response.raise_for_status()
     
     data = response.json()
     
@@ -44,6 +53,8 @@ async def get_xau_usd_data():
     }
     async with httpx.AsyncClient() as client:
           response = await client.get(url, headers=headers)
+
+    response.raise_for_status()
   
     data = response.json()  
     price = float(data["price"])
@@ -92,3 +103,31 @@ async def get_market():
         **xau_data,
 
     }
+
+
+@app.get("/market/xau-usd/history")
+async def get_market_history():
+    url = "https://api.twelvedata.com/time_series"
+
+
+    params = {
+        "symbol": "XAU/USD",
+        "interval" : "1day",
+        "outputsize" : 7,
+        "apikey" : API_KEY,
+    }
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url,params = params)
+
+    response.raise_for_status()
+
+    data = response.json()
+    history = []
+
+    for value in data["values"]:
+        history.append({
+            "date": value["datetime"],
+            "price": float(value["close"]),
+        })
+
+    return history

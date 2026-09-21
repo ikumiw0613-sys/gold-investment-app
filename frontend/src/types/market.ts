@@ -6,3 +6,8 @@ export type MarketData = {
   xauUsdChange: number;
   xauUsdChangePercent: number;
 };
+
+export type MarketHistoryPoint = {
+  date: string;
+  price: number;
+};
