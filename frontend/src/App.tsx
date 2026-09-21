@@ -3,6 +3,7 @@ import type { MarketData } from "./types/market";
 import { fetchMarketData, fetchMarketHistory } from "./lib/market";
 import { InvestmentForm } from "./components/InvestmentForm";
 import type { InvestmentRecord } from "./types/investment";
+import {fetchInvestmentRecords,saveInvestmentRecord } from "./lib/investmentApi";
 
 
 function App() {
@@ -16,13 +17,14 @@ function App() {
     async function loadMarketData() {
       try {
         const data = await fetchMarketData();
-        const history = await fetchMarketHistory();
+        const history = await fetchInvestmentRecords();
 
         console.log(data);
         console.log(history);
 
         if (active) {
           setMarketData(data);
+          setRecords(history);
         }
       } catch {
         if (active) {
@@ -47,8 +49,15 @@ function App() {
 
       <InvestmentForm
         marketData={marketData}
-        onSubmitRecord={(record) => {
-          setRecords((prev) => [...prev, record]);
+        onSubmitRecord={async (record) => {
+          try {
+            await saveInvestmentRecord(record);
+
+            setRecords((prev) => [...prev, record]);
+          } catch (error) {
+            console.error(error);
+            alert("履歴の保存に失敗しました");
+          }
         }}
       />
       <ul>
