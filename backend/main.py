@@ -4,6 +4,12 @@ import httpx
 from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
 
+from sqlalchemy import text
+
+from database import engine
+from sqlmodel import SQLModel,Session
+from models import InvestmentRecord
+
 
 app = FastAPI()
 app.add_middleware(
@@ -13,6 +19,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+SQLModel.metadata.create_all(engine)
 load_dotenv()
 
 API_KEY = os.getenv("TWELVE_DATA_API_KEY")
@@ -131,3 +138,19 @@ async def get_market_history():
         })
 
     return history
+
+
+@app.post("/investments")
+def create_investment(record: InvestmentRecord):
+    with Session(engine) as session:
+        session.add(record)
+        session.commit()
+        session.refresh(record)
+
+    return record
+
+@app.get("/db-check")
+def db_check():
+    with engine.connect() as connection:
+        result = connection.execute(text("SELECT 1"))
+        return {"result": result.scalar()}
