@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from database import engine
-from sqlmodel import SQLModel,Session
+from sqlmodel import SQLModel,Session,select
 from models import InvestmentRecord
 
 
@@ -148,6 +148,14 @@ def create_investment(record: InvestmentRecord):
         session.refresh(record)
 
     return record
+
+@app.get("/investments")
+def get_investments():
+    with Session(engine) as session:
+        statement = select(InvestmentRecord)
+        records = session.exec(statement).all()
+
+    return records
 
 @app.get("/db-check")
 def db_check():
