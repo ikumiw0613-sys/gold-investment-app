@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
 import type { MarketData } from "./types/market";
 import { fetchMarketData, fetchMarketHistory } from "./lib/market";
+import { InvestmentForm } from "./components/InvestmentForm";
+import type { InvestmentRecord } from "./types/investment";
+
 
 function App() {
   const [marketData, setMarketData] = useState<MarketData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [records, setRecords] = useState<InvestmentRecord[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -38,10 +42,26 @@ function App() {
   if (!marketData) return <p>読み込み中...</p>;
 
   return (
+
     <>
+
+      <InvestmentForm
+        marketData={marketData}
+        onSubmitRecord={(record) => {
+          setRecords((prev) => [...prev, record]);
+        }}
+      />
+      <ul>
+        {records.map((record) => (
+          <li key={record.id}>
+            {record.date} - {record.addedPoints}pt
+          </li>
+        ))}
+      </ul>
       <p>GLD: {marketData.gldPrice}</p>
       <p>USD/JPY: {marketData.usdJpy}</p>
       <p>XAU/USD: {marketData.xauUsdPrice}</p>
+      <p>登録件数: {records.length}</p>
     </>
   );
 }
