@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { fetchMarketData } from "./lib/market";
 import type { MarketData } from "./types/market";
+import { fetchMarketData, fetchMarketHistory } from "./lib/market";
 
 function App() {
   const [marketData, setMarketData] = useState<MarketData | null>(null);
@@ -12,9 +12,18 @@ function App() {
     async function loadMarketData() {
       try {
         const data = await fetchMarketData();
-        if (active) setMarketData(data);
+        const history = await fetchMarketHistory();
+
+        console.log(data);
+        console.log(history);
+
+        if (active) {
+          setMarketData(data);
+        }
       } catch {
-        if (active) setError("市場データを取得できませんでした。");
+        if (active) {
+          setError("市場データを取得できませんでした。");
+        }
       }
     }
 
