@@ -23,3 +23,21 @@ export async function fetchMarketHistory(): Promise<MarketHistoryPoint[]> {
 
   return await response.json();
 }
+
+export type MarketPeriod = "7d" | "1m" | "3m" | "1y";
+
+export async function fetchGldHistory(
+  period: MarketPeriod = "7d",
+  signal?: AbortSignal,
+): Promise<MarketHistoryPoint[]> {
+  const response = await fetch(
+    `http://127.0.0.1:8000/market/gld/history?period=${period}`,
+    { signal },
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch GLD history");
+  }
+
+  return await response.json();
+}
