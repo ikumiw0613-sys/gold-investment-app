@@ -12,7 +12,7 @@ import type { InvestmentRecord } from "../types/investment";
 
 type Props = {
   marketData: MarketData;
-  onSubmitRecord: (record: InvestmentRecord) => void;
+  onSubmitRecord: (record: InvestmentRecord) => void | Promise<void>;
 };
 
 function getToday() {
@@ -29,8 +29,10 @@ function getToday() {
 export function InvestmentForm({ marketData, onSubmitRecord }: Props) {
   const [date, setDate] = useState(getToday());
   const [addedPoints, setAddedPoints] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const points = Number(addedPoints);
@@ -68,15 +70,24 @@ export function InvestmentForm({ marketData, onSubmitRecord }: Props) {
       virtualAmount,
     };
 
-    onSubmitRecord(record);
-    setDate("");
-    setAddedPoints("");
+    if (saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await onSubmitRecord(record);
+      setDate(getToday());
+      setAddedPoints("");
+    } catch {
+      setError("保存できませんでした。入力内容を残しています。もう一度お試しください。");
+    } finally {
+      setSaving(false);
+    }
   }
 
 
   return (
 
-    <form onSubmit={handleSubmit}>
+    <form className="investment-form" onSubmit={handleSubmit}>
       <div>
         <label htmlFor="date">追加日</label>
         <input
@@ -94,15 +105,16 @@ export function InvestmentForm({ marketData, onSubmitRecord }: Props) {
           id="points"
           type="number"
           min="1"
+          placeholder="例：1000"
           value={addedPoints}
           onChange={(event) => setAddedPoints(event.target.value)}
           required
         />
       </div>
 
-      <button type="submit">
-        登録
-      </button>
+      <p className="form-fee">手数料の目安 <strong>{calculateFee(Math.max(0, Number(addedPoints) || 0)).toLocaleString("ja-JP")} pt</strong></p>
+      {error && <p className="form-error" role="alert">{error}</p>}
+      <button className="submit-button" type="submit" disabled={saving}>{saving ? "保存中…" : "記録する"}</button>
     </form>
   );
 }

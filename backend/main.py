@@ -1,8 +1,7 @@
 from fastapi import FastAPI
 from datetime import date
 from market_period import MarketPeriod, history_start_date
-import os
-import httpx
+from market_data import market_data
 from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -24,8 +23,6 @@ app.add_middleware(
 SQLModel.metadata.create_all(engine)
 load_dotenv()
 
-API_KEY = os.getenv("TWELVE_DATA_API_KEY")
-GOLD_API_KEY = os.getenv("GOLD_API_KEY")
 
 
 
@@ -36,36 +33,13 @@ def root():
 
 
 async def get_latest_close(symbol: str) -> float:
-    url = "https://api.twelvedata.com/time_series"
-    
-    params = {
-        "symbol" : symbol,
-        "interval" : "1day",
-        "outputsize" : 1,
-        "apikey" : API_KEY,
-        }
-    
-    async with httpx.AsyncClient() as client:
-      response = await client.get(url,params = params)
+    data = await market_data.series(symbol)
 
-    response.raise_for_status()
-    
-    data = response.json()
-    
     close_price = float(data["values"][0]["close"])
     return close_price
     
 async def get_xau_usd_data():
-    url = "https://www.goldapi.io/api/price/XAU/USD"
-    headers = {
-        "x-access-token": GOLD_API_KEY
-    }
-    async with httpx.AsyncClient() as client:
-          response = await client.get(url, headers=headers)
-
-    response.raise_for_status()
-  
-    data = response.json()  
+    data = await market_data.gold()
     price = float(data["price"])
     previous_close = float(data["prev_close_price"])
     change = float(data["change"])
@@ -116,21 +90,7 @@ async def get_market():
 
 @app.get("/market/xau-usd/history")
 async def get_market_history():
-    url = "https://api.twelvedata.com/time_series"
-
-
-    params = {
-        "symbol": "XAU/USD",
-        "interval" : "1day",
-        "outputsize" : 7,
-        "apikey" : API_KEY,
-    }
-    async with httpx.AsyncClient() as client:
-        response = await client.get(url,params = params)
-
-    response.raise_for_status()
-
-    data = response.json()
+    data = await market_data.series("XAU/USD")
     history = []
 
     for value in data["values"]:
@@ -144,23 +104,9 @@ async def get_market_history():
 
 @app.get("/market/gld/history")
 async def get_gld_history(period: MarketPeriod = "7d"):
-    url = "https://api.twelvedata.com/time_series"
     today = date.today()
     start_date = history_start_date(period, today)
-
-    params = {
-        "symbol": "GLD",
-        "interval": "1day",
-        "outputsize": (today - start_date).days + 1,
-        "apikey": API_KEY,
-    }
-
-    async with httpx.AsyncClient() as client:
-        response = await client.get(url, params=params)
-
-    response.raise_for_status()
-
-    data = response.json()
+    data = await market_data.series("GLD")
 
     history = []
 

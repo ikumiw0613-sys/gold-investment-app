@@ -42,29 +42,30 @@ export function GoldChart({ data, showSevenDays = false }: {
 
   return (
     <>
-      <div aria-live="polite" style={{ marginBottom: 16 }}>
-        <p>選択期間の騰落率: <strong>{changeText}</strong></p>
+      <div aria-live="polite" className="chart-caption">
+        <p>期間騰落率 <strong className={changePercent !== null && changePercent < 0 ? "negative" : "positive"}>{changeText}</strong></p>
         <p style={{ fontSize: "0.85em" }}>
-          {first.date} ～ {last.date}（期間内の最初と最後の終値を比較）
+          {first.date} ～ {last.date}
         </p>
       </div>
     <div style={{ width: "100%", minWidth: 0, height: 300 }}>
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={chartData} margin={{ top: 16, right: 24, bottom: 16, left: 16 }}>
-          <CartesianGrid strokeDasharray="3 3" />
+        <LineChart data={chartData} margin={{ top: 16, right: 8, bottom: 8, left: 0 }}>
+          <CartesianGrid vertical={false} stroke="#e4e4db" />
           <XAxis
             dataKey="date"
             interval={showSevenDays ? 0 : "preserveEnd"}
-            tickFormatter={showSevenDays ? (date: string) => date.slice(5).replace("-", "/") : undefined}
-            tick={{ fontSize: 12 }}
+            tickFormatter={(date: string) => date.slice(5).replace("-", "/")}
+            axisLine={false} tickLine={false} tickMargin={12}
+            tick={{ fontSize: 10, fill: "#72756a" }}
           />
-          <YAxis domain={["auto", "auto"]} />
-          <Tooltip />
-          <Line type="monotone" dataKey="price" name="GLD (USD)" stroke="#b8860b" strokeWidth={2} connectNulls />
+          <YAxis domain={["auto", "auto"]} width={46} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#72756a" }} tickFormatter={(value: number) => value.toFixed(0)} />
+          <Tooltip contentStyle={{ background: "#fbfbf8", border: "1px solid #dedfd5", borderRadius: 3, fontSize: 12 }} />
+          <Line type="monotone" dataKey="price" name="GLD (USD)" stroke="#9b8145" strokeWidth={2} dot={false} activeDot={{ r: 4 }} connectNulls />
         </LineChart>
       </ResponsiveContainer>
     </div>
-    {showSevenDays && <p style={{ fontSize: "0.85em" }}>本日を含む7日間を表示。休場日など価格のない日は前後の終値を線で結んでいます。</p>}
+    {showSevenDays && <p className="chart-note">本日を含む7日間。休場日は前後の終値を線で結んでいます。</p>}
     </>
   );
 }
