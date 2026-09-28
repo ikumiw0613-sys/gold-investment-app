@@ -1,4 +1,6 @@
 from fastapi import FastAPI
+from datetime import date
+from market_period import MarketPeriod, history_start_date
 import os
 import httpx
 from dotenv import load_dotenv
@@ -141,13 +143,15 @@ async def get_market_history():
 
 
 @app.get("/market/gld/history")
-async def get_gld_history():
+async def get_gld_history(period: MarketPeriod = "7d"):
     url = "https://api.twelvedata.com/time_series"
+    today = date.today()
+    start_date = history_start_date(period, today)
 
     params = {
         "symbol": "GLD",
         "interval": "1day",
-        "outputsize": 7,
+        "outputsize": (today - start_date).days + 1,
         "apikey": API_KEY,
     }
 
@@ -161,6 +165,8 @@ async def get_gld_history():
     history = []
 
     for value in data["values"]:
+        if not start_date.isoformat() <= value["datetime"][:10] <= today.isoformat():
+            continue
         history.append({
             "date": value["datetime"],
             "price": float(value["close"]),
