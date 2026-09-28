@@ -23,3 +23,15 @@ export async function fetchMarketHistory(): Promise<MarketHistoryPoint[]> {
 
   return await response.json();
 }
+
+export async function fetchGldHistory(): Promise<MarketHistoryPoint[]> {
+  const response = await fetch(
+    "http://127.0.0.1:8000/market/gld/history"
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch GLD history");
+  }
+
+  return await response.json();
+}
