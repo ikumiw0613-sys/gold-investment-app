@@ -105,7 +105,7 @@ function DashboardPage() {
         </div>
         {chartError ? <p role="alert">{chartError}</p> : gldHistory === null ? (
           <p role="status">価格履歴を読み込み中...</p>
-        ) : <GoldChart data={gldHistory} />}
+        ) : <GoldChart data={gldHistory} showSevenDays={period === "7d"} />}
       </section>
 
       <InvestmentForm
