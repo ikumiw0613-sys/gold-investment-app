@@ -143,7 +143,6 @@ function DashboardPage() {
         </section>
         <aside className="entry-section"><p className="eyebrow">積み立ての記録</p><h2>ポイントを追加</h2><p className="form-intro">投資した日とポイントを記録します。</p><InvestmentForm marketData={marketData} onSubmitRecord={async record => { await saveInvestmentRecord(record); setRecords(prev => [...prev, record]); }} /></aside>
       </div>
-      <section className="history-section"><div className="section-heading"><h2>積み立て履歴</h2><span className="muted">{records.length}件</span></div>{records.length === 0 ? <div className="empty-state"><p>まだ記録がありません</p><span>ポイントを追加すると、ここに積み立て履歴が表示されます。</span></div> : <div className="table-scroll"><table><thead><tr><th scope="col">追加日</th><th scope="col">追加ポイント</th><th scope="col">手数料</th><th scope="col">運用ポイント</th></tr></thead><tbody>{[...records].sort((a, b) => b.date.localeCompare(a.date)).map(record => <tr key={record.id}><td>{record.date.replaceAll("-", "/")}</td><td>{number(record.addedPoints)} <small>pt</small></td><td>{number(record.feePoints, 2)} <small>pt</small></td><td>{number(record.investedPoints, 2)} <small>pt</small></td></tr>)}</tbody></table></div>}</section>
       <footer className="page-footer"><span>金の運用帳</span><span>評価額は参考値です。実際の運用結果とは異なる場合があります。</span></footer>
     </main>
   );
