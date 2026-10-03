@@ -8,7 +8,7 @@ import { InvestmentForm } from "../components/InvestmentForm";
 import type { InvestmentRecord } from "../types/investment";
 import { fetchInvestmentRecords, saveInvestmentRecord } from "../lib/investmentApi";
 
-import { calculatePortfolioSummary } from "../lib/investment";
+import { calculatePortfolioSummary, toInvestmentMarkers } from "../lib/investment";
 import { errorMessage } from "../lib/api";
 
 const periods: { value: MarketPeriod; label: string }[] = [
@@ -24,6 +24,8 @@ function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [records, setRecords] = useState<InvestmentRecord[]>([]);
 
+  const investmentMarkers = filterGldHistoryByPeriod(toInvestmentMarkers(records), period);
+
   const [gldHistory, setGldHistory] = useState<MarketHistoryPoint[] | null>(null);
   const [chartError, setChartError] = useState<string | null>(null);
   const [storedGldHistory, setStoredGldHistory] = useState<MarketHistoryPoint[] | null>(null);
@@ -31,6 +33,7 @@ function DashboardPage() {
   const chartHistory = storedGldHistory !== null && gldHistory !== null
     ? filterGldHistoryByPeriod(mergeGldHistory(storedGldHistory, gldHistory), period)
     : null;
+  const latestChartPoint = chartError ? undefined : chartHistory?.at(-1);
 
   useEffect(() => {
     let active = true;
@@ -120,8 +123,8 @@ function DashboardPage() {
       <div className="workspace">
         <section className="chart-section" aria-label="GLD価格履歴">
           <div className="section-heading"><div><h2>価格の推移</h2><p className="muted">GLD · 米ドル建て</p></div><div className="periods" role="group" aria-label="表示期間">{periods.map(option => <button key={option.value} type="button" aria-pressed={period === option.value} onClick={() => { if (period === option.value) return; setGldHistory(null); setChartError(null); setPeriod(option.value); }}>{option.label}</button>)}</div></div>
-          {chartError ? <p className="chart-status" role="alert">{chartError}</p> : chartHistory === null ? <p className="chart-status" role="status">価格履歴を読み込んでいます…</p> : <GoldChart data={chartHistory} showSevenDays={period === "7d"} />}
-          <dl className="market-quotes"><div><dt>GLD <span>USD</span></dt><dd>{number(marketData.gldPrice, 2)}</dd></div><div><dt>ドル / 円 <span>JPY</span></dt><dd>{number(marketData.usdJpy, 2)}</dd></div><div><dt>金スポット <span>USD / oz</span></dt><dd>{number(marketData.xauUsdPrice, 2)}</dd></div></dl>
+          {chartError ? <p className="chart-status" role="alert">{chartError}</p> : chartHistory === null ? <p className="chart-status" role="status">価格履歴を読み込んでいます…</p> : <GoldChart data={chartHistory} markers={investmentMarkers} showSevenDays={period === "7d"} />}
+          <dl className="market-quotes"><div><dt>GLD??????? <span>USD</span></dt><dd>{latestChartPoint ? number(latestChartPoint.price, 2) : "?"}{latestChartPoint && <small> {latestChartPoint.date}</small>}</dd></div><div><dt>ドル / 円 <span>JPY</span></dt><dd>{number(marketData.usdJpy, 2)}</dd></div><div><dt>金スポット <span>USD / oz</span></dt><dd>{number(marketData.xauUsdPrice, 2)}</dd></div></dl>
           <p className="data-note">価格は最大1時間ごとに更新されます。</p>
         </section>
         <aside className="entry-section"><p className="eyebrow">積み立ての記録</p><h2>ポイントを追加</h2><p className="form-intro">投資した日とポイントを記録します。</p><InvestmentForm marketData={marketData} onSubmitRecord={async record => { await saveInvestmentRecord(record); setRecords(prev => [...prev, record]); }} /></aside>
