@@ -14,3 +14,6 @@ def history_start_date(period: MarketPeriod, today: date) -> date:
     year, month = divmod(month_index, 12)
     month += 1
     return date(year, month, min(today.day, monthrange(year, month)[1]))
+
+
+

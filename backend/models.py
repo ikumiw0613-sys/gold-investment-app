@@ -17,3 +17,12 @@ class InvestmentRecord(SQLModel, table=True):
     usd_jpy: float
     approximate_price: float
     virtual_amount: float
+
+class MarketPrice(SQLModel, table=True):
+    __tablename__ = "market_prices"
+
+    id: int | None = Field(default=None, primary_key=True)
+    date: Date = Field(unique=True)
+    gld_price: float
+    usd_jpy: float
+    xau_usd_price: float
