@@ -2,7 +2,7 @@
 import { GoldChart } from "../components/GoldChart";
 import type { MarketHistoryPoint } from "../types/market";
 import type { MarketData } from "../types/market";
-import { fetchMarketData, fetchGldHistory } from "../lib/market";
+import { fetchMarketData, fetchGldHistory, fetchStoredMarketPrices, toGldHistory, mergeGldHistory, filterGldHistoryByPeriod } from "../lib/market";
 import type { MarketPeriod } from "../lib/market";
 import { InvestmentForm } from "../components/InvestmentForm";
 import type { InvestmentRecord } from "../types/investment";
@@ -26,6 +26,31 @@ function DashboardPage() {
 
   const [gldHistory, setGldHistory] = useState<MarketHistoryPoint[] | null>(null);
   const [chartError, setChartError] = useState<string | null>(null);
+  const [storedGldHistory, setStoredGldHistory] = useState<MarketHistoryPoint[] | null>(null);
+
+  const chartHistory = storedGldHistory !== null && gldHistory !== null
+    ? filterGldHistoryByPeriod(mergeGldHistory(storedGldHistory, gldHistory), period)
+    : null;
+
+  useEffect(() => {
+    let active = true;
+
+    void fetchStoredMarketPrices().then(
+      (prices) => {
+        if (active) {
+          setStoredGldHistory(toGldHistory(prices));
+        }
+      },
+      (error: unknown) => {
+        if (active) {
+          console.error("保存済み市場価格を取得できませんでした。", error);
+          setStoredGldHistory([]);
+        }
+      },
+    );
+
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -95,7 +120,7 @@ function DashboardPage() {
       <div className="workspace">
         <section className="chart-section" aria-label="GLD価格履歴">
           <div className="section-heading"><div><h2>価格の推移</h2><p className="muted">GLD · 米ドル建て</p></div><div className="periods" role="group" aria-label="表示期間">{periods.map(option => <button key={option.value} type="button" aria-pressed={period === option.value} onClick={() => { if (period === option.value) return; setGldHistory(null); setChartError(null); setPeriod(option.value); }}>{option.label}</button>)}</div></div>
-          {chartError ? <p className="chart-status" role="alert">{chartError}</p> : gldHistory === null ? <p className="chart-status" role="status">価格履歴を読み込んでいます…</p> : <GoldChart data={gldHistory} showSevenDays={period === "7d"} />}
+          {chartError ? <p className="chart-status" role="alert">{chartError}</p> : chartHistory === null ? <p className="chart-status" role="status">価格履歴を読み込んでいます…</p> : <GoldChart data={chartHistory} showSevenDays={period === "7d"} />}
           <dl className="market-quotes"><div><dt>GLD <span>USD</span></dt><dd>{number(marketData.gldPrice, 2)}</dd></div><div><dt>ドル / 円 <span>JPY</span></dt><dd>{number(marketData.usdJpy, 2)}</dd></div><div><dt>金スポット <span>USD / oz</span></dt><dd>{number(marketData.xauUsdPrice, 2)}</dd></div></dl>
           <p className="data-note">価格は最大1時間ごとに更新されます。</p>
         </section>

@@ -61,7 +61,7 @@ export function GoldChart({ data, showSevenDays = false }: {
           />
           <YAxis domain={["auto", "auto"]} width={46} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#72756a" }} tickFormatter={(value: number) => value.toFixed(0)} />
           <Tooltip contentStyle={{ background: "#fbfbf8", border: "1px solid #dedfd5", borderRadius: 3, fontSize: 12 }} />
-          <Line type="monotone" dataKey="price" name="GLD (USD)" stroke="#9b8145" strokeWidth={2} dot={false} activeDot={{ r: 4 }} connectNulls />
+          <Line type="monotone" dataKey="price" name="GLD (USD)" stroke="#9b8145" strokeWidth={2} dot={sortedData.length === 1 ? { r: 4 } : false} activeDot={{ r: 4 }} connectNulls />
         </LineChart>
       </ResponsiveContainer>
     </div>
