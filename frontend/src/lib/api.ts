@@ -1,5 +1,9 @@
 const pending = new Map<string, Promise<unknown>>();
-const baseUrl = "http://127.0.0.1:8000";
+const baseUrl = (import.meta.env?.VITE_API_BASE_URL?.trim() || "http://127.0.0.1:8000").replace(/\/+$/, "");
+
+export function apiUrl(path: string): string {
+  return `${baseUrl}${path}`;
+}
 
 export function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -8,7 +12,7 @@ export function errorMessage(error: unknown, fallback: string): string {
 async function request<T>(path: string): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(`${baseUrl}${path}`);
+    response = await fetch(apiUrl(path));
   } catch {
     throw new Error("サーバーに接続できませんでした。接続状況を確認してください。");
   }

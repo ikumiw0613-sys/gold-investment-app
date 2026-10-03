@@ -1,5 +1,5 @@
 import type { InvestmentRecord } from "../types/investment";
-import { getJson } from "./api.ts";
+import { apiUrl, getJson } from "./api.ts";
 
 type InvestmentRecordResponse = {
   id: string;
@@ -30,7 +30,7 @@ export async function fetchInvestmentRecords(): Promise<InvestmentRecord[]> {
 }
 
 export async function saveInvestmentRecord(record: InvestmentRecord) {
-  const response = await fetch("http://127.0.0.1:8000/investments", {
+  const response = await fetch(apiUrl("/investments"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

@@ -1,10 +1,21 @@
 import assert from "node:assert/strict";
 import { afterEach, mock, test } from "node:test";
-import { getJson, errorMessage } from "../src/lib/api.ts";
+import { getJson, errorMessage, apiUrl } from "../src/lib/api.ts";
 import { fetchMarketData, fetchGldHistory } from "../src/lib/market.ts";
-import { fetchInvestmentRecords } from "../src/lib/investmentApi.ts";
+import { fetchInvestmentRecords, saveInvestmentRecord } from "../src/lib/investmentApi.ts";
 
 afterEach(() => mock.restoreAll());
+
+test("investment registration uses the shared API URL and backend field names", async () => {
+  const fetch = mock.method(globalThis, "fetch", async () => Response.json({}));
+  await saveInvestmentRecord({ id: "v1", date: "2026-10-03", addedPoints: 500, feePoints: 5,
+    investedPoints: 495, gldPrice: 400, usdJpy: 150, approximatePrice: 60000, virtualAmount: 0.00825 });
+  const [url, options] = fetch.mock.calls[0].arguments;
+  assert.equal(url, apiUrl("/investments"));
+  assert.equal(options.method, "POST");
+  assert.deepEqual(JSON.parse(options.body), { id: "v1", date: "2026-10-03", added_points: 500,
+    fee_points: 5, invested_points: 495, gld_price: 400, usd_jpy: 150, approximate_price: 60000, virtual_amount: 0.00825 });
+});
 
 test("overlapping dashboard loads share each GET, including StrictMode effect replay", async () => {
   const requests = [];
