@@ -9,7 +9,7 @@ from sqlalchemy import text
 
 from database import engine
 from sqlmodel import SQLModel,Session,select
-from models import InvestmentRecord
+from models import InvestmentRecord, MarketPrice
 
 
 app = FastAPI()
@@ -143,3 +143,40 @@ def db_check():
     with engine.connect() as connection:
         result = connection.execute(text("SELECT 1"))
         return {"result": result.scalar()}
+
+
+@app.post("/market-prices")
+async def save_market_price():
+    today = date.today()
+
+    with Session(engine) as session:
+        statement = select(MarketPrice).where(MarketPrice.date == today)
+        existing = session.exec(statement).first()
+
+        if existing:
+            return existing
+
+        gld_price = await get_latest_close("GLD")
+        usd_jpy = await get_latest_close("USD/JPY")
+        xau_data = await get_xau_usd_data()
+
+        market_price = MarketPrice(
+            date=today,
+            gld_price=gld_price,
+            usd_jpy=usd_jpy,
+            xau_usd_price=xau_data["xauUsdPrice"],
+        )
+
+        session.add(market_price)
+        session.commit()
+        session.refresh(market_price)
+
+        return market_price
+
+@app.get("/market-prices")
+def get_market_prices():
+    with Session(engine) as session:
+        statement = select(MarketPrice).order_by(MarketPrice.date.asc())
+        prices = session.exec(statement).all()
+
+    return prices
