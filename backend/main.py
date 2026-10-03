@@ -1,41 +1,45 @@
 from fastapi import FastAPI
-from datetime import date
+from datetime import datetime
+from contextlib import asynccontextmanager
 from market_period import MarketPeriod, history_start_date
 from market_data import market_data
-from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
 
-from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 
 from database import engine
 from sqlmodel import SQLModel,Session,select
-from models import InvestmentRecord, MarketPrice
+from models import InvestmentRecord, InvestmentRecordData, MarketPrice
 
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from scheduler import daily_scheduler
+from settings import CORS_ORIGINS, SCHEDULER_ENABLED, TOKYO
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    SQLModel.metadata.create_all(engine)
+    app.state.scheduler = None
+    if SCHEDULER_ENABLED:
+        async with daily_scheduler(engine, save_today_market_price) as scheduler:
+            app.state.scheduler = scheduler
+            try:
+                yield
+            finally:
+                app.state.scheduler = None
+    else:
+        yield
 
-
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
-SQLModel.metadata.create_all(engine)
-load_dotenv()
-
-
-
-
-
 @app.get("/")
 def root():
     return {"message": "Gold Investment API"}
-
 
 async def get_latest_close(symbol: str) -> float:
     data = await market_data.series(symbol)
@@ -58,7 +62,7 @@ async def get_xau_usd_data():
     }
 
 async def save_today_market_price():
-    today = date.today()
+    today = datetime.now(TOKYO).date()
 
     with Session(engine) as session:
         statement = select(MarketPrice).where(MarketPrice.date == today)
@@ -79,22 +83,18 @@ async def save_today_market_price():
         )
 
         session.add(market_price)
-        session.commit()
+        try:
+            session.commit()
+        except IntegrityError:
+            session.rollback()
+            # Another request/process may have saved this date while we fetched prices.
+            existing = session.exec(statement).first()
+            if existing is None:
+                raise
+            return existing
         session.refresh(market_price)
 
         return market_price
-
-
-scheduler = AsyncIOScheduler(timezone="Asia/Tokyo")
-
-scheduler.add_job(
-    save_today_market_price,
-    "cron",
-    hour=13,
-    minute=58,
-)
-
-scheduler.start()
 
 @app.get("/market/gld")
 async def get_gld():
@@ -129,7 +129,6 @@ async def get_market():
 
     }
 
-
 @app.get("/market/xau-usd/history")
 async def get_market_history():
     data = await market_data.series("XAU/USD")
@@ -143,10 +142,9 @@ async def get_market_history():
 
     return history
 
-
 @app.get("/market/gld/history")
 async def get_gld_history(period: MarketPeriod = "7d"):
-    today = date.today()
+    today = datetime.now(TOKYO).date()
     start_date = history_start_date(period, today)
     data = await market_data.series("GLD")
 
@@ -162,9 +160,9 @@ async def get_gld_history(period: MarketPeriod = "7d"):
 
     return history
 
-
 @app.post("/investments")
-def create_investment(record: InvestmentRecord):
+def create_investment(record: InvestmentRecordData):
+    record = InvestmentRecord.model_validate(record)
     with Session(engine) as session:
         session.add(record)
         session.commit()
@@ -179,13 +177,6 @@ def get_investments():
         records = session.exec(statement).all()
 
     return records
-
-@app.get("/db-check")
-def db_check():
-    with engine.connect() as connection:
-        result = connection.execute(text("SELECT 1"))
-        return {"result": result.scalar()}
-
 
 @app.post("/market-prices")
 async def save_market_price():

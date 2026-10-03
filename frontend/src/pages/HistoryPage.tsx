@@ -3,9 +3,8 @@ import type { InvestmentRecord } from "../types/investment";
 import { fetchInvestmentRecords } from "../lib/investmentApi";
 import { errorMessage } from "../lib/api";
 
-const number = (value: number, digits = 0) => value.toLocaleString("ja-JP", {
-  minimumFractionDigits: digits, maximumFractionDigits: digits,
-});
+import { formatNumber as number } from "../lib/format";
+
 const columns: { key: keyof InvestmentRecord; label: string; format: (record: InvestmentRecord) => string }[] = [
   { key: "addedPoints", label: "追加ポイント", format: record => `${number(record.addedPoints)} pt` },
   { key: "feePoints", label: "手数料", format: record => `${number(record.feePoints, 2)} pt` },

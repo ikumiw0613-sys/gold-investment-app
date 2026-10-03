@@ -12,7 +12,7 @@ let { outputText } = ts.transpileModule(source, {
 for (const dependency of ["react", "react/jsx-runtime"]) {
   outputText = outputText.replaceAll(`"${dependency}"`, JSON.stringify(import.meta.resolve(dependency)));
 }
-for (const [specifier, path] of [["../lib/investmentApi", "../src/lib/investmentApi.ts"], ["../lib/api", "../src/lib/api.ts"]]) {
+for (const [specifier, path] of [["../lib/investmentApi", "../src/lib/investmentApi.ts"], ["../lib/api", "../src/lib/api.ts"], ["../lib/format", "../src/lib/format.ts"]]) {
   outputText = outputText.replaceAll(`"${specifier}"`, JSON.stringify(new URL(path, import.meta.url).href));
 }
 const { InvestmentHistoryList, default: HistoryPage } = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);

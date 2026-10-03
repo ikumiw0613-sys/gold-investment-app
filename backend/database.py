@@ -1,13 +1,11 @@
 import os
 
-from dotenv import load_dotenv
 from sqlmodel import create_engine
-
-load_dotenv()
+import settings  # Load the project's .env before reading DATABASE_URL.
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-if DATABASE_URL is None:
+if not DATABASE_URL:
     raise ValueError("DATABASE_URL is not set")
 
-engine = create_engine(DATABASE_URL, echo=True)
+engine = create_engine(DATABASE_URL, pool_pre_ping=True)
