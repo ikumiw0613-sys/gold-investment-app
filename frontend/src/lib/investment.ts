@@ -2,6 +2,39 @@ import type { InvestmentRecord, PortfolioSummary, InvestmentMarker } from "../ty
 
 export const FEE_RATE = 0.01;
 
+// virtualAmount uses GLD * USD/JPY, so this price is points per virtual unit.
+export function calculateAverageAcquisitionPrice(
+  records: readonly InvestmentRecord[],
+): number | null {
+  const totalInvestedPoints = records.reduce((total, record) => total + record.investedPoints, 0);
+  const totalVirtualAmount = records.reduce((total, record) => total + record.virtualAmount, 0);
+  if (!Number.isFinite(totalInvestedPoints) || !Number.isFinite(totalVirtualAmount)
+    || totalInvestedPoints <= 0 || totalVirtualAmount <= 0) return null;
+  const average = totalInvestedPoints / totalVirtualAmount;
+  return Number.isFinite(average) && average > 0 ? average : null;
+}
+
+// Both prices must use the same unit (e.g. points per virtual unit).
+export function calculatePriceDifference(
+  currentPrice: number,
+  averagePrice: number | null,
+): number | null {
+  if (averagePrice === null || !Number.isFinite(averagePrice) || averagePrice <= 0
+    || !Number.isFinite(currentPrice) || currentPrice <= 0) return null;
+  const difference = currentPrice - averagePrice;
+  return Number.isFinite(difference) ? difference : null;
+}
+
+export function calculatePriceDeviationRate(
+  currentPrice: number,
+  averagePrice: number | null,
+): number | null {
+  const difference = calculatePriceDifference(currentPrice, averagePrice);
+  if (difference === null || averagePrice === null) return null;
+  const rate = (difference / averagePrice) * 100;
+  return Number.isFinite(rate) ? rate : null;
+}
+
 export function toInvestmentMarkers(
   records: readonly InvestmentRecord[],
 ): InvestmentMarker[] {

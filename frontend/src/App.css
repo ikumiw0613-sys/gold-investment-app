@@ -34,6 +34,8 @@
 .market-quotes dt { font-size: 11px; } .market-quotes dt span { margin-left: 6px; font-size: 9px; color: var(--muted); }
 .market-quotes dd { font-size: 21px; font-variant-numeric: tabular-nums; margin-top: 4px; }
 .data-note { margin-top: 16px; }
+.market-quotes.acquisition-quotes { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 20px; }
+.market-quotes.acquisition-quotes > div { padding-left: 0; border-left: 0; }
 .entry-section { background: #efefe7; padding: 26px 24px; align-self: start; border-top: 2px solid #92987b; }
 .form-intro { font-size: 11px; color: var(--muted); margin: 10px 0 24px; }
 .investment-form { display: grid; gap: 18px; }
