@@ -9,6 +9,7 @@ import type { InvestmentRecord } from "../types/investment";
 import { fetchInvestmentRecords, saveInvestmentRecord } from "../lib/investmentApi";
 
 import { calculatePortfolioSummary } from "../lib/investment";
+import { errorMessage } from "../lib/api";
 
 const periods: { value: MarketPeriod; label: string }[] = [
   { value: "7d", label: "7日" },
@@ -39,9 +40,9 @@ function DashboardPage() {
           setMarketData(data);
           setRecords(history);
         }
-      } catch {
+      } catch (error) {
         if (active) {
-          setError("市場データまたは投資履歴を取得できませんでした。");
+          setError(errorMessage(error, "市場データまたは投資履歴を取得できませんでした。"));
         }
       }
     }
@@ -54,20 +55,20 @@ function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    const controller = new AbortController();
+    let active = true;
 
-    void fetchGldHistory(period, controller.signal).then(
+    void fetchGldHistory(period).then(
       (history) => {
-        if (!controller.signal.aborted) setGldHistory(history);
+        if (active) setGldHistory(history);
       },
-      () => {
-        if (!controller.signal.aborted) {
-          setChartError("GLDの価格履歴を取得できませんでした。");
+      (error: unknown) => {
+        if (active) {
+          setChartError(errorMessage(error, "GLDの価格履歴を取得できませんでした。"));
         }
       },
     );
 
-    return () => controller.abort();
+    return () => { active = false; };
   }, [period]);
 
   if (error) return <main className="dashboard"><header className="masthead">金の運用帳</header><div className="status-message" role="alert">{error}<p>時間をおいてページを再読み込みしてください。</p></div></main>;

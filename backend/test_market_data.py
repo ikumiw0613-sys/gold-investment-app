@@ -46,6 +46,7 @@ class MarketDataTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(HTTPException) as error:
                 await self.market.series(symbol)
             self.assertEqual(error.exception.status_code, 503)
+            self.assertIn("取得上限", error.exception.detail)
             self.assertNotIn("secret", str(error.exception))
         await self.market.series("GLD")
         self.assertEqual(self.get.await_count, 2)
@@ -63,10 +64,31 @@ class MarketDataTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(HTTPException):
             await self.market.series("GLD")
         self.assertFalse(self.market.cache)
+        self.assertIn("取得上限", self.market.failure_messages["twelve"])
         self.get.return_value = success
         self.now = 3600
         await self.market.series("GLD")
         self.assertEqual(self.get.await_count, 2)
+
+    async def test_connection_failure_keeps_its_reason_during_cooldown(self):
+        self.get.side_effect = httpx.ConnectError("private URL")
+        for symbol in ("GLD", "USD/JPY"):
+            with self.assertRaises(HTTPException) as error:
+                await self.market.series(symbol)
+            self.assertIn("提供元に接続できません", error.exception.detail)
+            self.assertNotIn("private", error.exception.detail)
+        self.assertEqual(self.get.await_count, 1)
+
+    async def test_invalid_price_is_reported_as_service_error(self):
+        self.get.return_value = httpx.Response(
+            200, json={"values": [{"datetime": "2026-09-28", "close": "invalid"}]},
+            request=httpx.Request("GET", "https://example.com"),
+        )
+        with self.assertRaises(HTTPException) as error:
+            await self.market.series("GLD")
+        self.assertEqual(error.exception.status_code, 503)
+        self.assertIn("正しいデータ", error.exception.detail)
+        self.assertFalse(self.market.cache)
 
 
 if __name__ == "__main__":

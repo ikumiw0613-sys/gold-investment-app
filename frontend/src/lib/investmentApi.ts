@@ -1,4 +1,5 @@
 import type { InvestmentRecord } from "../types/investment";
+import { getJson } from "./api.ts";
 
 type InvestmentRecordResponse = {
   id: string;
@@ -13,13 +14,7 @@ type InvestmentRecordResponse = {
 };
 
 export async function fetchInvestmentRecords(): Promise<InvestmentRecord[]> {
-  const response = await fetch("http://127.0.0.1:8000/investments");
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch investment records");
-  }
-
-  const data: InvestmentRecordResponse[] = await response.json();
+  const data = await getJson<InvestmentRecordResponse[]>("/investments");
 
   return data.map((record) => ({
     id: record.id,
