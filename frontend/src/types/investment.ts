@@ -19,3 +19,10 @@ export type PortfolioSummary = {
   profit: number;
   profitRate: number;
 };
+
+export type InvestmentMarker = {
+  id: string;
+  date: string;
+  price: number;
+  addedPoints: number;
+};

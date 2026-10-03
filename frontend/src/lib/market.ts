@@ -33,11 +33,11 @@ export function fetchMarketHistory(): Promise<MarketHistoryPoint[]> {
 
 export type MarketPeriod = "7d" | "1m" | "3m" | "1y";
 
-export function filterGldHistoryByPeriod(
-  history: readonly MarketHistoryPoint[],
+export function filterGldHistoryByPeriod<T extends { date: string }>(
+  history: readonly T[],
   period: MarketPeriod,
   today = new Date(),
-): MarketHistoryPoint[] {
+): T[] {
   const end = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   let start: Date;
   if (period === "7d") {

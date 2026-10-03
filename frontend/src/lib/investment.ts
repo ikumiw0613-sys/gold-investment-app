@@ -1,6 +1,19 @@
-import type { InvestmentRecord, PortfolioSummary } from "../types/investment";
+import type { InvestmentRecord, PortfolioSummary, InvestmentMarker } from "../types/investment";
 
 export const FEE_RATE = 0.01;
+
+export function toInvestmentMarkers(
+  records: readonly InvestmentRecord[],
+): InvestmentMarker[] {
+  return records
+    .map(({ id, date, gldPrice, addedPoints }) => ({
+      id,
+      date,
+      price: gldPrice,
+      addedPoints,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
 
 export function calculateFee(addedPoints: number): number {
   if (addedPoints < 0) {
