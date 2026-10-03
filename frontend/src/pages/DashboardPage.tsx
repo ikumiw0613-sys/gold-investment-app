@@ -8,7 +8,7 @@ import { InvestmentForm } from "../components/InvestmentForm";
 import type { InvestmentRecord } from "../types/investment";
 import { fetchInvestmentRecords, saveInvestmentRecord } from "../lib/investmentApi";
 
-import { calculatePortfolioSummary, toInvestmentMarkers } from "../lib/investment";
+import { calculatePortfolioSummary, toInvestmentMarkers, calculateAverageAcquisitionPrice, calculatePriceDifference, calculatePriceDeviationRate } from "../lib/investment";
 import { errorMessage } from "../lib/api";
 
 const periods: { value: MarketPeriod; label: string }[] = [
@@ -111,6 +111,9 @@ function DashboardPage() {
   const number = (value: number, digits = 0) => value.toLocaleString("ja-JP", { maximumFractionDigits: digits, minimumFractionDigits: digits });
   const signed = (value: number) => `${value > 0 ? "+" : ""}${number(value, 2)}`;
   const valuation = number(summary.currentValue, 2);
+  const averagePrice = calculateAverageAcquisitionPrice(records);
+  const priceDifference = calculatePriceDifference(summary.currentApproximatePrice, averagePrice);
+  const priceDeviation = calculatePriceDeviationRate(summary.currentApproximatePrice, averagePrice);
 
   return (
     <main className="dashboard">
@@ -120,11 +123,22 @@ function DashboardPage() {
         <div className="valuation"><p className="metric-label">推定評価額</p><p className="valuation-number"><span className="valuation-amount" style={{ fontSize: `min(56px, ${125 / valuation.length}cqi)` }}>{valuation}</span><span className="valuation-unit">pt</span></p><p className="muted">GLD価格とドル円から算出</p></div>
         <dl className="summary-details"><div><dt>累計投入ポイント</dt><dd>{number(summary.totalAddedPoints)} <small>pt</small></dd></div><div><dt>評価損益</dt><dd className={summary.profit < 0 ? "negative" : summary.profit > 0 ? "positive" : ""}>{signed(summary.profit)} <small>pt</small><span className="profit-rate">{signed(summary.profitRate)}%</span></dd></div><div><dt>累計手数料</dt><dd>{number(summary.totalFeePoints, 2)} <small>pt</small></dd></div></dl>
       </section>
+      <section className="history-section" aria-label="平均取得価格との比較">
+        <div className="section-heading"><h2>平均取得価格との比較</h2></div>
+        <dl className="market-quotes acquisition-quotes">
+          <div><dt>平均取得価格</dt><dd>{averagePrice === null ? "—" : number(averagePrice, 2)} <small>pt/口</small></dd></div>
+          <div><dt>現在GLD価格</dt><dd>${number(marketData.gldPrice, 2)} <small>USD</small></dd></div>
+          <div><dt>現在価格（円換算相当）</dt><dd>{number(summary.currentApproximatePrice, 2)} <small>pt/口</small></dd></div>
+          <div><dt>平均取得価格との差</dt><dd className={priceDifference === null ? "" : priceDifference < 0 ? "negative" : priceDifference > 0 ? "positive" : ""}>{priceDifference === null ? "—" : signed(priceDifference)} <small>pt/口</small></dd></div>
+          <div><dt>乖離率</dt><dd className={priceDeviation === null ? "" : priceDeviation < 0 ? "negative" : priceDeviation > 0 ? "positive" : ""}>{priceDeviation === null ? "—" : `${signed(priceDeviation)}%`}</dd></div>
+        </dl>
+        <p className="data-note">平均取得価格は累計運用ポイント ÷ 累計仮想保有量。現在GLD価格をドル円で換算して比較するため、乖離率には為替の変動も含まれます。</p>
+      </section>
       <div className="workspace">
         <section className="chart-section" aria-label="GLD価格履歴">
           <div className="section-heading"><div><h2>価格の推移</h2><p className="muted">GLD · 米ドル建て</p></div><div className="periods" role="group" aria-label="表示期間">{periods.map(option => <button key={option.value} type="button" aria-pressed={period === option.value} onClick={() => { if (period === option.value) return; setGldHistory(null); setChartError(null); setPeriod(option.value); }}>{option.label}</button>)}</div></div>
           {chartError ? <p className="chart-status" role="alert">{chartError}</p> : chartHistory === null ? <p className="chart-status" role="status">価格履歴を読み込んでいます…</p> : <GoldChart data={chartHistory} markers={investmentMarkers} showSevenDays={period === "7d"} />}
-          <dl className="market-quotes"><div><dt>GLD??????? <span>USD</span></dt><dd>{latestChartPoint ? number(latestChartPoint.price, 2) : "?"}{latestChartPoint && <small> {latestChartPoint.date}</small>}</dd></div><div><dt>ドル / 円 <span>JPY</span></dt><dd>{number(marketData.usdJpy, 2)}</dd></div><div><dt>金スポット <span>USD / oz</span></dt><dd>{number(marketData.xauUsdPrice, 2)}</dd></div></dl>
+          <dl className="market-quotes"><div><dt>GLD（期間内最新） <span>USD</span></dt><dd>{latestChartPoint ? number(latestChartPoint.price, 2) : "—"}{latestChartPoint && <small> {latestChartPoint.date}</small>}</dd></div><div><dt>ドル / 円 <span>JPY</span></dt><dd>{number(marketData.usdJpy, 2)}</dd></div><div><dt>金スポット <span>USD / oz</span></dt><dd>{number(marketData.xauUsdPrice, 2)}</dd></div></dl>
           <p className="data-note">価格は最大1時間ごとに更新されます。</p>
         </section>
         <aside className="entry-section"><p className="eyebrow">積み立ての記録</p><h2>ポイントを追加</h2><p className="form-intro">投資した日とポイントを記録します。</p><InvestmentForm marketData={marketData} onSubmitRecord={async record => { await saveInvestmentRecord(record); setRecords(prev => [...prev, record]); }} /></aside>
