@@ -1,4 +1,5 @@
 import asyncio
+import os
 import unittest
 from unittest.mock import AsyncMock, patch
 
@@ -10,6 +11,9 @@ from market_data import MarketData
 
 class MarketDataTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
+        env_patch = patch.dict(os.environ, {"TWELVE_DATA_API_KEY": "test-twelve-key", "GOLD_API_KEY": "test-gold-key"})
+        env_patch.start()
+        self.addCleanup(env_patch.stop)
         self.now = 0
         self.market = MarketData(clock=lambda: self.now)
         self.patch = patch("market_data.httpx.AsyncClient")
@@ -89,6 +93,14 @@ class MarketDataTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(error.exception.status_code, 503)
         self.assertIn("正しいデータ", error.exception.detail)
         self.assertFalse(self.market.cache)
+
+    async def test_missing_keys_do_not_call_external_providers(self):
+        with patch.dict(os.environ, {"TWELVE_DATA_API_KEY": "", "GOLD_API_KEY": ""}):
+            for request in (lambda: self.market.series("GLD"), self.market.gold):
+                with self.assertRaises(HTTPException) as error:
+                    await request()
+                self.assertEqual(error.exception.status_code, 503)
+            self.get.assert_not_awaited()
 
 
 if __name__ == "__main__":

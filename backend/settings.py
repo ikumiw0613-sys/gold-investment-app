@@ -6,10 +6,12 @@ from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 
-# Resolve from the project, independently of the launch directory.
-load_dotenv(Path(__file__).resolve().parents[1] / ".env")
-# Keep existing backend/.env setups working; process/root values take precedence.
-load_dotenv(Path(__file__).resolve().parent / ".env")
+IS_VERCEL = os.getenv("VERCEL") == "1"
+# Hosted deployments use only the environment configured on Vercel.
+if not IS_VERCEL:
+    load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+    # Keep existing backend/.env setups working in local development.
+    load_dotenv(Path(__file__).resolve().parent / ".env")
 
 TOKYO = ZoneInfo("Asia/Tokyo")
 CORS_ORIGINS = [
@@ -17,7 +19,6 @@ CORS_ORIGINS = [
     if origin.strip()
 ] or ["http://localhost:5173", "http://127.0.0.1:5173"]
 # Serverless instances cannot own a persistent background scheduler. Use Vercel Cron.
-IS_VERCEL = os.getenv("VERCEL") == "1"
 SCHEDULER_ENABLED = not IS_VERCEL and (os.getenv("SCHEDULER_ENABLED") or "true").lower() in {"true", "1", "yes"}
 MARKET_SAVE_HOUR = int(os.getenv("MARKET_SAVE_HOUR") or "7")
 MARKET_SAVE_MINUTE = int(os.getenv("MARKET_SAVE_MINUTE") or "10")

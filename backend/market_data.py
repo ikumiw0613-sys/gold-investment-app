@@ -69,18 +69,24 @@ class MarketData:
             return data
 
     async def series(self, symbol):
+        api_key = (os.getenv("TWELVE_DATA_API_KEY") or "").strip()
+        if not api_key:
+            raise HTTPException(503, "市場データを現在取得できません。時間をおいて再度お試しください。")
         # One GLD snapshot serves the latest price and every chart period.
         return await self.fetch(
             symbol, "twelve", "https://api.twelvedata.com/time_series",
             params={"symbol": symbol, "interval": "1day",
                     "outputsize": 366 if symbol == "GLD" else 7 if symbol == "XAU/USD" else 1,
-                    "apikey": os.getenv("TWELVE_DATA_API_KEY")},
+                    "apikey": api_key},
         )
 
     async def gold(self):
+        api_key = (os.getenv("GOLD_API_KEY") or "").strip()
+        if not api_key:
+            raise HTTPException(503, "市場データを現在取得できません。時間をおいて再度お試しください。")
         return await self.fetch(
             "gold", "gold", "https://www.goldapi.io/api/price/XAU/USD",
-            headers={"x-access-token": os.getenv("GOLD_API_KEY")},
+            headers={"x-access-token": api_key},
         )
 
 

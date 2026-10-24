@@ -10,7 +10,8 @@ from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 from fastapi.testclient import TestClient
-from sqlmodel import create_engine
+from sqlmodel import SQLModel, create_engine
+from sqlalchemy.exc import OperationalError
 
 # Never use the developer's PostgreSQL connection in this test suite.
 with patch.dict(os.environ, {"DATABASE_URL": "sqlite://", "SCHEDULER_ENABLED": "false"}):
@@ -24,12 +25,16 @@ class AppTests(unittest.TestCase):
         self.engine = create_engine(f"sqlite:///{Path(directory.name) / 'test.sqlite3'}",
                                     connect_args={"check_same_thread": False})
         self.addCleanup(self.engine.dispose)
-        engine_patch = patch.object(main, "engine", self.engine)
+        SQLModel.metadata.create_all(self.engine)
+        engine_patch = patch.object(main, "get_engine", return_value=self.engine)
         engine_patch.start()
         self.addCleanup(engine_patch.stop)
         scheduler_patch = patch.object(main, "SCHEDULER_ENABLED", False)
         scheduler_patch.start()
         self.addCleanup(scheduler_patch.stop)
+        vercel_patch = patch.object(main, "IS_VERCEL", False)
+        vercel_patch.start()
+        self.addCleanup(vercel_patch.stop)
         self.series = AsyncMock(side_effect=self.mock_series)
         self.gold = AsyncMock(return_value={"price": 2700, "prev_close_price": 2690,
                                            "change": 10, "change_percent": 0.37})
@@ -107,6 +112,19 @@ class AppTests(unittest.TestCase):
             response = client.post("/investments", json={"id": "invalid", "date": "not-a-date"})
             self.assertEqual(response.status_code, 422)
             self.assertEqual(client.get("/investments").json(), [])
+
+    def test_health_checks_database(self):
+        with TestClient(main.app) as client:
+            self.assertEqual(client.get("/health").json(), {"status": "ok"})
+
+    def test_database_connection_errors_return_service_unavailable_without_credentials(self):
+        with TestClient(main.app) as client:
+            with patch.object(main, "get_engine", side_effect=OperationalError("private-database", {}, Exception("secret-password"))):
+                for path in ("/investments", "/market-prices", "/health"):
+                    response = client.get(path)
+                    self.assertEqual(response.status_code, 503)
+                    self.assertNotIn("secret-password", response.text)
+                    self.assertNotIn("private-database", response.text)
 
     def test_concurrent_daily_saves_return_same_row(self):
         with TestClient(main.app):

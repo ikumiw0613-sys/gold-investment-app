@@ -24,7 +24,7 @@ Vercel用のルート`requirements.txt`は依存パッケージを直接列挙�
 
 1. このリポジトリをGitへ反映し、Vercelの **Add New → Project** からインポートします。
 2. **Root Directoryはリポジトリ直下（`.`）**、Framework Presetは **FastAPI** にします。`frontend`や`backend`をRoot Directoryにしないでください。
-3. Node.js Versionを **24.x** に設定します。Pythonは`.python-version`で3.13を指定しています。Build Commandは`vercel.json`の値を使用し、Install CommandとOutput Directoryは上書きしません。
+3. Node.jsはルート`package.json`で **24.x**、Pythonは`.python-version`で3.13を指定しています。Build Commandは`vercel.json`の値を使用し、Install CommandとOutput Directoryは上書きしません。
 4. 以下の環境変数をVercelの **Settings → Environment Variables** に登録して、デプロイします。
 
 | 環境変数 | 値 |
@@ -34,11 +34,25 @@ Vercel用のルート`requirements.txt`は依存パッケージを直接列挙�
 | `GOLD_API_KEY` | GoldAPIのAPIキー |
 | `CRON_SECRET` | 16文字以上のランダムな秘密文字列。Cronリクエストの認証に使用します。 |
 
-`VITE_API_BASE_URL`は**未設定**にします。本番ビルドでは同じドメインの`/api`へ接続するため、公開URLを入力する必要はありません。既存の設定に`http://127.0.0.1:8000`がある場合は削除して再デプロイしてください。別のAPIを使う場合のみ、HTTPSのURLを指定します。秘密情報を`VITE_`変数へ登録しないでください。
+`VITE_API_BASE_URL`は**設定不要**です。Vercelでのビルドは常に同じドメインの`/api`へ接続し、古いローカル用URLが環境変数に残っていても使用しません。Vercel以外では従来どおりこの変数で接続先を変更できます。秘密情報を`VITE_`変数へ登録しないでください。
 
-DBユーザーには初回起動時のテーブル作成権限が必要です。既存のDBを指定した場合はその投資履歴を利用します。Previewで登録したデータも同じDBへ保存されるため、PreviewとProductionには別々のDBを設定してください。
+DBユーザーには初回のDBアクセス時のテーブル作成権限が必要です。既存のDBを指定した場合はその投資履歴を利用します。Previewで登録したデータも同じDBへ保存されるため、PreviewとProductionには別々のDBを設定してください。
 
-デプロイ後は`/`と`/#/history`の表示、`/api/`の応答、ポイント追加後の再読み込みで履歴が残ることを確認します。APIドキュメントは`/api/docs`です。現在のアプリにはログイン・ユーザー別のデータ分離がなく、アクセスできる人全員が同じ履歴を閲覧・登録できます。個人の投資履歴を置く場合は画面と`/api/*`の両方に認証・アクセス制限を適用してください。
+**公開用DBをまだ作成していない場合**は、クラウド上にPostgreSQLのDB・接続ユーザーを作成し、提供される接続URLをVercelの`DATABASE_URL`へ設定してください。コードの変更だけで公開用DBは作成されません。Vercelではローカルの`.env`を読み込まず、`localhost`・SQLiteのDB接続先を拒否します。PostgreSQL接続URLの`postgres://`と`postgresql://`はインストール済みドライバー向けに変換し、TLSを有効化します。接続タイムアウトは未指定時10秒です。
+
+公開用の設定例は[deploy/vercel.env.example](deploy/vercel.env.example)です。値を埋めたローカルファイルで、接続URLの形式と必須設定を確認できます（秘密情報の表示や外部通信はしません）。
+
+```powershell
+if (-not (Test-Path .env.production)) { Copy-Item deploy/vercel.env.example .env.production }
+# .env.productionの値を編集した後に実行します。このファイルはGit管理対象外です。
+.\.venv\Scripts\python.exe -B scripts/check_deployment.py --env-file .env.production
+```
+
+チェックが成功したら、その値をVercelのEnvironment Variablesにも設定して再デプロイします。このチェックは実際のDB接続・APIキーの有効性までは検証しません。
+
+デプロイ後は`/`と`/#/history`の表示、`/api/health`の`{"status":"ok"}`応答、ポイント追加後の再読み込みで履歴が残ることを確認します。APIドキュメントは`/api/docs`です。DB未設定でも画面のHTMLと`/api/`は配信しますが、履歴の取得・登録とDB接続確認は503を返します。DBを設定するまでは投資記録を保存できません。APIキー未設定時も外部APIを呼び出さず、市場データの取得は503を返します。
+
+現在のアプリにはログイン・ユーザー別のデータ分離がなく、アクセスできる人全員が同じ履歴を閲覧・登録できます。個人の投資履歴を置く場合は画面と`/api/*`の両方に認証・アクセス制限を適用してください。
 
 ### Vercelでの日次保存
 
@@ -88,7 +102,7 @@ PostgreSQLでこのアプリ用のDBと接続ユーザーを用意し、ルー�
 接続文字列の形式は `postgresql+psycopg2://USER:PASSWORD@HOST:5432/DB_NAME` です。
 パスワードの特殊文字はURLエンコードしてください。実際の認証情報はGitへ追加しません。
 ルート`.env.example`は全キーの一覧です。Vite用の値は`frontend/.env`へ設定してください。
-バックエンドはプロセス環境変数 → ルート`.env` → 既存の`backend/.env`の優先順位で読み込みます。
+ローカルのバックエンドはプロセス環境変数 → ルート`.env` → 既存の`backend/.env`の優先順位で読み込みます。Vercelではプロセス環境変数だけを使用します。
 `VITE_`変数はブラウザへ公開されるため、APIキーやDB接続文字列を入れないでください。
 
 ### 2. バックエンド
@@ -118,7 +132,7 @@ macOS/Linuxでは`npm.cmd`を`npm`、Python実行パスを`.venv/bin/python`に�
 
 ## DBと日次保存
 
-- 起動時に`investment_records`と`market_prices`の未作成テーブルを作成します。
+- 初回DBアクセス時に`investment_records`と`market_prices`の未作成テーブルを作成します。ローカルでは起動時にDBへアクセスします。
 - `create_all`は既存テーブルの列・制約を変更しません。スキーマ変更時は別途マイグレーションが必要です。
 - `market_prices.date`は一意。同日の再保存は既存行を返し、同時保存も一意制約違反を処理します。既存DBにも一意制約があるか確認してください。
 - 保存日とスケジュールは`Asia/Tokyo`。既定は**毎日7:10**で、当日の実行時点の取得値を保存します。提供元の取引日と保存日は異なる場合があります。
@@ -195,8 +209,8 @@ PostgreSQLのスケジューラ所有権テストはDB接続をモックして�
 
 - **GLDとUSD/JPYによる概算であり、PayPayポイント運用の実際の評価額と一致しない可能性があります。** 実際のポイント残高や取引を同期しません。
 - v1には認証・ユーザー分離がありません。接続した人は全履歴を閲覧・登録できます。一般公開前に認証またはアクセス制限を導入してください。CORSは認証の代わりにはなりません。
-- 本番は`--reload`を使わず、`uvicorn main:app --host 127.0.0.1 --port 8000 --workers 1`をHTTPSのリバースプロキシ等の背後で実行します。
-- 本番の画面originを`CORS_ORIGINS`へ設定し、`frontend/.env.production`またはビルド環境に`VITE_API_BASE_URL`を設定して再ビルドします。API URLを変えただけでは既存ビルドは更新されません。
+- 常駐サーバーで運用する場合は`--reload`を使わず、`uvicorn main:app --host 127.0.0.1 --port 8000 --workers 1`をHTTPSのリバースプロキシ等の背後で実行します。Vercelでは前述の公開構成を使用します。
+- 画面とAPIを別のoriginで公開する場合は`CORS_ORIGINS`と`VITE_API_BASE_URL`を設定して再ビルドします。Vercelの一体構成では設定不要です。
 - APIキー、DBの最小権限、TLS、バックアップ、既存テーブルの一意制約、日次ジョブのログと失敗監視を確認してください。
 - 外部APIの利用上限・データ遅延・休場日に依存します。任意の過去日を登録しても、価格は登録時点の市場データを使用します。
 - ビルド時の約600kBのチャンクサイズ警告はv1の既知事項です。今後必要に応じてコード分割を検討します。

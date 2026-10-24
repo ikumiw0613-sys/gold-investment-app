@@ -8,19 +8,33 @@ from market_period import MarketPeriod, history_start_date
 from market_data import market_data
 from fastapi.middleware.cors import CORSMiddleware
 
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy import text
 
-from database import engine
-from sqlmodel import SQLModel,Session,select
+from database import DatabaseConfigurationError, get_engine
+from sqlmodel import Session, select
 from models import InvestmentRecord, InvestmentRecordData, MarketPrice
 
 from scheduler import daily_scheduler
-from settings import CORS_ORIGINS, SCHEDULER_ENABLED, TOKYO
+from settings import CORS_ORIGINS, IS_VERCEL, SCHEDULER_ENABLED, TOKYO
+
+
+def database_engine():
+    try:
+        return get_engine()
+    except (DatabaseConfigurationError, SQLAlchemyError):
+        # Connection errors may contain credentials; never return their text.
+        raise HTTPException(503, "投資記録の保存先に接続できません。時間をおいて再度お試しください。") from None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    SQLModel.metadata.create_all(engine)
     app.state.scheduler = None
+    # Vercel must be able to inspect/import the app and serve the UI without a DB.
+    # Database routes initialize the connection and tables on first use.
+    if IS_VERCEL:
+        yield
+        return
+    engine = get_engine()
     if SCHEDULER_ENABLED:
         async with daily_scheduler(engine, save_today_market_price) as scheduler:
             app.state.scheduler = scheduler
@@ -43,6 +57,16 @@ app.add_middleware(
 @app.get("/")
 def root():
     return {"message": "Gold Investment API"}
+
+@app.get("/health", include_in_schema=False)
+def health():
+    engine = database_engine()
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+    except SQLAlchemyError:
+        raise HTTPException(503, "投資記録の保存先に接続できません。時間をおいて再度お試しください。") from None
+    return {"status": "ok"}
 
 async def get_latest_close(symbol: str) -> float:
     data = await market_data.series(symbol)
@@ -67,7 +91,7 @@ async def get_xau_usd_data():
 async def save_today_market_price():
     today = datetime.now(TOKYO).date()
 
-    with Session(engine) as session:
+    with Session(database_engine()) as session:
         statement = select(MarketPrice).where(MarketPrice.date == today)
         existing = session.exec(statement).first()
 
@@ -166,7 +190,7 @@ async def get_gld_history(period: MarketPeriod = "7d"):
 @app.post("/investments")
 def create_investment(record: InvestmentRecordData):
     record = InvestmentRecord.model_validate(record)
-    with Session(engine) as session:
+    with Session(database_engine()) as session:
         session.add(record)
         session.commit()
         session.refresh(record)
@@ -175,7 +199,7 @@ def create_investment(record: InvestmentRecordData):
 
 @app.get("/investments")
 def get_investments():
-    with Session(engine) as session:
+    with Session(database_engine()) as session:
         statement = select(InvestmentRecord)
         records = session.exec(statement).all()
 
@@ -196,7 +220,7 @@ async def cron_save_market_price(authorization: str | None = Header(default=None
 
 @app.get("/market-prices")
 def get_market_prices():
-    with Session(engine) as session:
+    with Session(database_engine()) as session:
         statement = select(MarketPrice).order_by(MarketPrice.date.asc())
         prices = session.exec(statement).all()
 
