@@ -1,4 +1,7 @@
-from fastapi import FastAPI
+import os
+import secrets
+
+from fastapi import FastAPI, Header, HTTPException
 from datetime import datetime
 from contextlib import asynccontextmanager
 from market_period import MarketPeriod, history_start_date
@@ -180,6 +183,15 @@ def get_investments():
 
 @app.post("/market-prices")
 async def save_market_price():
+    return await save_today_market_price()
+
+@app.get("/cron/market-prices", include_in_schema=False)
+async def cron_save_market_price(authorization: str | None = Header(default=None)):
+    secret = os.getenv("CRON_SECRET")
+    if not secret:
+        raise HTTPException(status_code=503, detail="Cron is not configured")
+    if not secrets.compare_digest((authorization or "").encode(), f"Bearer {secret}".encode()):
+        raise HTTPException(status_code=401, detail="Unauthorized")
     return await save_today_market_price()
 
 @app.get("/market-prices")

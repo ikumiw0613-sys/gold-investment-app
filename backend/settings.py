@@ -16,7 +16,9 @@ CORS_ORIGINS = [
     origin.strip() for origin in os.getenv("CORS_ORIGINS", "").split(",")
     if origin.strip()
 ] or ["http://localhost:5173", "http://127.0.0.1:5173"]
-SCHEDULER_ENABLED = (os.getenv("SCHEDULER_ENABLED") or "true").lower() in {"true", "1", "yes"}
+# Serverless instances cannot own a persistent background scheduler. Use Vercel Cron.
+IS_VERCEL = os.getenv("VERCEL") == "1"
+SCHEDULER_ENABLED = not IS_VERCEL and (os.getenv("SCHEDULER_ENABLED") or "true").lower() in {"true", "1", "yes"}
 MARKET_SAVE_HOUR = int(os.getenv("MARKET_SAVE_HOUR") or "7")
 MARKET_SAVE_MINUTE = int(os.getenv("MARKET_SAVE_MINUTE") or "10")
 if not 0 <= MARKET_SAVE_HOUR <= 23 or not 0 <= MARKET_SAVE_MINUTE <= 59:

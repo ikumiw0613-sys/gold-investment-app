@@ -15,6 +15,48 @@
 React 19 / TypeScript / Vite / Recharts、Python / FastAPI / SQLModel / SQLAlchemy / APScheduler 3、PostgreSQLを使用します。
 価格データはTwelve DataとGoldAPIから取得します。
 
+## Vercelへデプロイ
+
+画面とFastAPIを**1つのVercelプロジェクト**で公開できます。`app.py`が画面を`/`、APIを`/api`以下に配置し、`vercel.json`が画面のビルドと日次保存を設定します。
+FastAPIの静的ファイル配信・lifespan・Cronは[Vercel公式の対応機能](https://vercel.com/docs/frameworks/backend/fastapi)を使用しています。
+
+1. このリポジトリをGitへ反映し、Vercelの **Add New → Project** からインポートします。
+2. **Root Directoryはリポジトリ直下（`.`）**、Framework Presetは **FastAPI** にします。`frontend`や`backend`をRoot Directoryにしないでください。
+3. Node.js Versionを **24.x** に設定します。Pythonは`.python-version`で3.13を指定しています。Build Commandは`vercel.json`の値を使用し、Install CommandとOutput Directoryは上書きしません。
+4. 以下の環境変数をVercelの **Settings → Environment Variables** に登録して、デプロイします。
+
+| 環境変数 | 値 |
+| --- | --- |
+| `DATABASE_URL` | Vercelから接続できるPostgreSQLの接続文字列。例：`postgresql+psycopg2://USER:PASSWORD@HOST:5432/DB_NAME?sslmode=require`。サーバーレス向けの接続プールURLを利用できます。ローカルPCのDBには接続できません。 |
+| `TWELVE_DATA_API_KEY` | Twelve DataのAPIキー |
+| `GOLD_API_KEY` | GoldAPIのAPIキー |
+| `CRON_SECRET` | 16文字以上のランダムな秘密文字列。Cronリクエストの認証に使用します。 |
+
+`VITE_API_BASE_URL`は**未設定**にします。本番ビルドでは同じドメインの`/api`へ接続するため、公開URLを入力する必要はありません。既存の設定に`http://127.0.0.1:8000`がある場合は削除して再デプロイしてください。別のAPIを使う場合のみ、HTTPSのURLを指定します。秘密情報を`VITE_`変数へ登録しないでください。
+
+DBユーザーには初回起動時のテーブル作成権限が必要です。既存のDBを指定した場合はその投資履歴を利用します。Previewで登録したデータも同じDBへ保存されるため、PreviewとProductionには別々のDBを設定してください。
+
+デプロイ後は`/`と`/#/history`の表示、`/api/`の応答、ポイント追加後の再読み込みで履歴が残ることを確認します。APIドキュメントは`/api/docs`です。現在のアプリにはログイン・ユーザー別のデータ分離がなく、アクセスできる人全員が同じ履歴を閲覧・登録できます。個人の投資履歴を置く場合は画面と`/api/*`の両方に認証・アクセス制限を適用してください。
+
+### Vercelでの日次保存
+
+Vercelでは常駐スケジューラーを自動的に無効化し、Vercel Cronが`GET /api/cron/market-prices`を呼び出します。`CRON_SECRET`が一致しないリクエストは拒否します。保存処理は既存の「同日1行」の処理を利用します。
+
+スケジュールの`10 22 * * *`はUTC 22:10、**日本時間の翌朝7:10**です。Hobbyプランでは指定した時間帯の中で実行時刻がずれる場合があります。CronはProductionデプロイだけで実行されます。時刻の変更は`vercel.json`の`crons`を編集して再デプロイします（`MARKET_SAVE_HOUR` / `MARKET_SAVE_MINUTE`はローカルの常駐スケジューラー用です）。詳細は[Vercel Cronの公式説明](https://vercel.com/docs/cron-jobs/manage-cron-jobs)を参照してください。
+
+Vercel上のAPIキャッシュはインスタンスごとで、起動し直すと消えます。外部APIの呼び出し回数はアクセス数や起動するインスタンス数によって増えます。Cron失敗時の同日自動再試行はありません。手動保存には既存の`POST /api/market-prices`を利用できます。
+
+### ビルド済みの公開構成をローカルで確認
+
+```powershell
+# リポジトリ直下で実行。DB・APIキーはローカル起動と同じ設定です。
+npm.cmd --prefix frontend ci
+npm.cmd --prefix frontend run build
+.\.venv\Scripts\python.exe -m uvicorn app:app --host 127.0.0.1 --port 8000
+```
+
+`http://127.0.0.1:8000/`から画面と`/api`を一緒に確認できます。Vercelへの実デプロイにはVercelアカウントと上記の環境変数が必要です。
+
 ## ローカル起動
 
 Node.js 24、Python 3.13、PostgreSQLを用意してください。以下はリポジトリ直下から開始するPowerShellの例です。
@@ -38,7 +80,8 @@ PostgreSQLでこのアプリ用のDBと接続ユーザーを用意し、ルー�
 | `SCHEDULER_ENABLED` | ルート`.env`。`true` / `false` | `true` |
 | `MARKET_SAVE_HOUR` | ルート`.env`。日本時間の保存時刻、0〜23 | `7` |
 | `MARKET_SAVE_MINUTE` | ルート`.env`。保存時刻の分、0〜59 | `10` |
-| `VITE_API_BASE_URL` | **`frontend/.env`**。APIのベースURL | `http://127.0.0.1:8000` |
+| `VITE_API_BASE_URL` | **`frontend/.env`**。APIのベースURL | 開発時は`http://127.0.0.1:8000`、本番ビルドは`/api` |
+| `CRON_SECRET` | Vercelの環境変数。日次保存の認証 | Cron用エンドポイントは503を返す |
 
 接続文字列の形式は `postgresql+psycopg2://USER:PASSWORD@HOST:5432/DB_NAME` です。
 パスワードの特殊文字はURLエンコードしてください。実際の認証情報はGitへ追加しません。

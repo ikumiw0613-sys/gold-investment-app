@@ -1,5 +1,6 @@
 const pending = new Map<string, Promise<unknown>>();
-const baseUrl = (import.meta.env?.VITE_API_BASE_URL?.trim() || "http://127.0.0.1:8000").replace(/\/+$/, "");
+const baseUrl = (import.meta.env?.VITE_API_BASE_URL?.trim()
+  || (import.meta.env?.PROD ? "/api" : "http://127.0.0.1:8000")).replace(/\/+$/, "");
 
 export function apiUrl(path: string): string {
   return `${baseUrl}${path}`;

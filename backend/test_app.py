@@ -1,6 +1,7 @@
 """API/lifecycle checks using a disposable SQLite DB and mocked market providers."""
 
 import asyncio
+import importlib.util
 import os
 import tempfile
 import unittest
@@ -73,6 +74,33 @@ class AppTests(unittest.TestCase):
             self.assertEqual(len(client.get("/market-prices").json()), 1)
             self.assertEqual(first.json()["date"], datetime.now(main.TOKYO).date().isoformat())
             self.assertEqual(self.gold.await_count, 1)
+
+    def test_cron_requires_configured_secret_and_is_idempotent(self):
+        with TestClient(main.app) as client:
+            with patch.dict(os.environ, {"CRON_SECRET": ""}):
+                self.assertEqual(client.get("/cron/market-prices").status_code, 503)
+            with patch.dict(os.environ, {"CRON_SECRET": "test-cron-secret"}):
+                for headers in [{}, {"Authorization": "Bearer incorrect"}]:
+                    self.assertEqual(client.get("/cron/market-prices", headers=headers).status_code, 401)
+                self.gold.assert_not_awaited()
+                headers = {"Authorization": "Bearer test-cron-secret"}
+                first = client.get("/cron/market-prices", headers=headers)
+                second = client.get("/cron/market-prices", headers=headers)
+                self.assertEqual(first.status_code, 200)
+                self.assertEqual(first.json(), second.json())
+                self.assertEqual(len(client.get("/market-prices").json()), 1)
+                self.assertEqual(self.gold.await_count, 1)
+
+    def test_vercel_entrypoint_mounts_api_and_runs_database_lifespan(self):
+        spec = importlib.util.spec_from_file_location("vercel_entrypoint", Path(__file__).resolve().parents[1] / "app.py")
+        entrypoint = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(entrypoint)
+        with TestClient(entrypoint.app) as client:
+            self.assertEqual(client.get("/api/").json(), {"message": "Gold Investment API"})
+            self.assertEqual(client.get("/api/investments").json(), [])
+            self.assertEqual(client.get("/api/market").json()["gldPrice"], 400)
+            self.assertEqual(client.get("/api/does-not-exist").status_code, 404)
+            self.assertEqual(client.get("/api/openapi.json").json()["servers"], [{"url": "/api"}])
 
     def test_invalid_investment_is_rejected_before_database_write(self):
         with TestClient(main.app) as client:

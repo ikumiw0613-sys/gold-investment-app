@@ -25,3 +25,4 @@ coverage/
 # Local verification artifacts
 .local/
 *.sqlite3
+.vercel/

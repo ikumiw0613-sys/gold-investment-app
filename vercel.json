@@ -1,0 +1,20 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "fastapi",
+  "buildCommand": "npm --prefix frontend ci && npm --prefix frontend run build",
+  "functions": {
+    "app.py": {
+      "maxDuration": 60,
+      "excludeFiles": "{.venv/**,.local/**,node_modules/**,frontend/node_modules/**,frontend/src/**,frontend/tests/**,backend/test_*.py,**/__pycache__/**,**/.env,**/.env.*}"
+    }
+  },
+  "headers": [
+    {
+      "source": "/api/:path*",
+      "headers": [{ "key": "Cache-Control", "value": "no-store" }]
+    }
+  ],
+  "crons": [
+    { "path": "/api/cron/market-prices", "schedule": "10 22 * * *" }
+  ]
+}

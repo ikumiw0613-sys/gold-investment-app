@@ -36,7 +36,6 @@ function DashboardPage() {
       <header className="masthead"><a href="/" aria-label="金の運用帳 ホーム"><span className="brand-mark" aria-hidden="true" />金の運用帳</a><span>ポイント投資の記録</span></header>
       <div className="page-heading"><div><p className="eyebrow">運用状況</p><h1>金への積み立て</h1></div><p className="muted">{new Date().toLocaleDateString("ja-JP", { year: "numeric", month: "long", day: "numeric" })}</p></div>
       <PortfolioOverview summary={summary} />
-      <AcquisitionComparison records={records} currentGldPrice={marketData.gldPrice} currentApproximatePrice={summary.currentApproximatePrice} />
       <div className="workspace">
         <section className="chart-section" aria-label="GLD価格履歴">
           <div className="section-heading"><div><h2>価格の推移</h2><p className="muted">GLD · 米ドル建て</p></div><div className="periods" role="group" aria-label="表示期間">{periods.map(option => <button key={option.value} type="button" aria-pressed={period === option.value} onClick={() => selectPeriod(option.value)}>{option.label}</button>)}</div></div>
@@ -46,6 +45,7 @@ function DashboardPage() {
         </section>
         <aside className="entry-section"><p className="eyebrow">積み立ての記録</p><h2>ポイントを追加</h2><p className="form-intro">投資した日とポイントを記録します。</p><InvestmentForm marketData={marketData} onSubmitRecord={addRecord} /></aside>
       </div>
+      <AcquisitionComparison records={records} currentGldPrice={marketData.gldPrice} currentApproximatePrice={summary.currentApproximatePrice} />
       <footer className="page-footer"><span>金の運用帳</span><span>評価額は参考値です。実際の運用結果とは異なる場合があります。</span></footer>
     </main>
   );
