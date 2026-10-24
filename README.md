@@ -20,6 +20,8 @@ React 19 / TypeScript / Vite / Recharts、Python / FastAPI / SQLModel / SQLAlche
 画面とFastAPIを**1つのVercelプロジェクト**で公開できます。`app.py`が画面を`/`、APIを`/api`以下に配置し、`vercel.json`が画面のビルドと日次保存を設定します。
 FastAPIの静的ファイル配信・lifespan・Cronは[Vercel公式の対応機能](https://vercel.com/docs/frameworks/backend/fastapi)を使用しています。
 
+Vercel用のルート`requirements.txt`は依存パッケージを直接列挙しています。依存関係を変更するときは`backend/requirements.txt`と両方を更新してください。
+
 1. このリポジトリをGitへ反映し、Vercelの **Add New → Project** からインポートします。
 2. **Root Directoryはリポジトリ直下（`.`）**、Framework Presetは **FastAPI** にします。`frontend`や`backend`をRoot Directoryにしないでください。
 3. Node.js Versionを **24.x** に設定します。Pythonは`.python-version`で3.13を指定しています。Build Commandは`vercel.json`の値を使用し、Install CommandとOutput Directoryは上書きしません。
